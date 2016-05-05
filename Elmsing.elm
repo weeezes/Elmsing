@@ -61,11 +61,6 @@ flipSpinAt spinMatrix i j =
             _ -> spinMatrix
       _ -> spinMatrix
 
-spinEnergy spin =
-  case spin of
-    Up -> 1
-    Down -> -1
-
 flipSpin spin =
   case spin of
     Up -> Down
@@ -79,23 +74,28 @@ boundaryCondition lowerLimit upperLimit index =
   else
     index
 
-spinEnergyAt : SpinMatrix -> Int -> Int -> Float
-spinEnergyAt spinMatrix i j =
+spinMagnetization spin =
+  case spin of
+    Up -> 1
+    Down -> -1
+
+spinMagnetizationAt : SpinMatrix -> Int -> Int -> Float
+spinMagnetizationAt spinMatrix i j =
   let
     (height, width) = shape spinMatrix
     i' = boundaryCondition 0 width i
     j' = boundaryCondition 0 height j
   in
-    withDefault 0 <| Maybe.map spinEnergy <| get j' spinMatrix `andThen` get i'
+    withDefault 0 <| Maybe.map spinMagnetization <| get j' spinMatrix `andThen` get i'
 
 pointEnergy : SpinMatrix -> Int -> Int -> Float -> Float -> Float
 pointEnergy spinMatrix i j magneticFieldStrength interactionStrength =
   let
-    up = spinEnergyAt spinMatrix (i - 1) j
-    down = spinEnergyAt spinMatrix (i + 1) j
-    left = spinEnergyAt spinMatrix i (j - 1)
-    right = spinEnergyAt spinMatrix i (j + 1)
-    spin = spinEnergyAt spinMatrix i j
+    up = spinMagnetizationAt spinMatrix (i - 1) j
+    down = spinMagnetizationAt spinMatrix (i + 1) j
+    left = spinMagnetizationAt spinMatrix i (j - 1)
+    right = spinMagnetizationAt spinMatrix i (j + 1)
+    spin = spinMagnetizationAt spinMatrix i j
     neighbourSum = up + down + left + right
   in
     -1 * magneticFieldStrength * spin - interactionStrength * spin * neighbourSum
@@ -125,7 +125,7 @@ metropolis iterations seed energies magnetizations spinMatrix magneticFieldStren
       ((i, j), seed') = Random.generate (Random.pair (Random.int 0 height) (Random.int 0 width)) seed
       (r, seed'') = Random.generate (Random.float 0 1) seed'
       dE = -2.0 * pointEnergy spinMatrix i j magneticFieldStrength interactionStrength
-      dM = -2.0 * spinEnergyAt spinMatrix i j
+      dM = -2.0 * spinMagnetizationAt spinMatrix i j
     in
       if dE < 0 || r < e^(-dE/temperature) then
         let
