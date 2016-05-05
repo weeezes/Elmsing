@@ -412,13 +412,16 @@ update action model =
 
     RunMetropolis ->
       if model.running then
-        if model.steps <= 100 then
-          stepN model.steps model
-        else
-          let
-            model' = stepN 100 model
-          in
-            { model' | steps = 100 }
+        let
+          limit = 10000
+        in
+          if model.steps <= limit then
+            stepN model.steps model
+          else
+            let
+              model' = stepN limit model
+            in
+              { model' | steps = limit }
       else
         model
 
