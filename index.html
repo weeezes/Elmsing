@@ -45,8 +45,8 @@
     updateTotalEnergy = createChart("", "Total energy");
     updateTotalMagnetization = createChart("", "Total magnetization");
 
-		app.ports.energy.subscribe(updateEnergyDifference);
-    app.ports.energy.subscribe(updateMagnetizationDifference);
+		app.ports.energyDifferences.subscribe(updateEnergyDifference);
+    app.ports.magnetizationDifferences.subscribe(updateMagnetizationDifference);
     app.ports.energy.subscribe(updateTotalEnergy);
     app.ports.energy.subscribe(updateTotalMagnetization);
 

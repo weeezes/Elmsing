@@ -256,11 +256,13 @@ view address model =
 stepOne : Model -> Model
 stepOne model =
   let
-    (seed, energyDifferences, _, spinMatrix) = metropolis model.spinMatrix 1 model.randomSeed model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)--metropolis 2 model.randomSeed Array.empty Array.empty model.spinMatrix model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)
+    (seed, energyDifferences, magnetizationDifferences, spinMatrix) = metropolis model.spinMatrix 1 model.randomSeed model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)--metropolis 2 model.randomSeed Array.empty Array.empty model.spinMatrix model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)
     energiesAppended = List.append model.energyDifferences <| Array.toList energyDifferences
     energyDifferences' = List.drop (List.length energiesAppended - 100) energiesAppended
+    magnetizationsAppended = List.append model.magnetizationDifferences <| Array.toList magnetizationDifferences
+    magnetizationDifferences' = List.drop (List.length magnetizationsAppended - 100) magnetizationsAppended
   in
-    { model | spinMatrix = spinMatrix, randomSeed = seed, energyDifferences = energyDifferences'}
+    { model | spinMatrix = spinMatrix, randomSeed = seed, energyDifferences = energyDifferences', magnetizationDifferences = magnetizationDifferences'}
 
 update : Action -> Model -> Model
 update action model =
@@ -367,8 +369,14 @@ type alias Point =
   , value : Float
   }
 
-port energy : Signal (List Point)
-port energy =
+port energyDifferences : Signal (List Point)
+port energyDifferences =
   Signal.sampleOn
-    (Time.every (5 * Time.second))
+    (Time.every (1 * Time.second))
     (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.energyDifferences) app.model)
+
+port magnetizationDifferences : Signal (List Point)
+port magnetizationDifferences =
+  Signal.sampleOn
+    (Time.every (1 * Time.second))
+    (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.magnetizationDifferences) app.model)
