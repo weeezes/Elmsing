@@ -188,10 +188,13 @@ type alias Model =
     magneticFieldStrength : Float,
     interactionStrength : Float,
     running : Bool,
-    energyDifferences : List Float,
-    magnetizationDifferences : List Float,
-    totalEnergies : List Float,
-    totalMagnetizations : List Float
+    currentStep : Int,
+    energyDifferences : List (Float, Float),
+    magnetizationDifferences : List (Float, Float),
+    totalEnergies : List (Float, Float),
+    totalMagnetizations : List (Float, Float),
+    avgEnergy : Float,
+    avgMagnetization : Float
   }
 
 initialModel : Model
@@ -205,10 +208,13 @@ initialModel =
     magneticFieldStrength = 1,
     interactionStrength = 1,
     running = False,
+    currentStep = 0,
     energyDifferences = [],
     magnetizationDifferences = [],
     totalEnergies = [],
-    totalMagnetizations = []
+    totalMagnetizations = [],
+    avgEnergy = 0,
+    avgMagnetization = 0
   }
 
 numberInputWithLabel label placeholder value signal =
@@ -248,7 +254,9 @@ view address model =
     , Html.button [Events.onClick address StepOneMetropolis] [ Html.text "Step"]
     , Html.button [Events.onClick address ToggleRunning] [Html.text <| if model.running then "Stop" else "Start"]
     , Html.br [] []
-    , Html.text <| toString <| totalEnergy model.spinMatrix model.magneticFieldStrength model.interactionStrength
+    , Html.text <| toString model.avgEnergy
+    , Html.br [] []
+    , Html.text <| toString model.avgMagnetization
     , Html.br [] []
     , Html.table [] <|
         Array.toList <|
@@ -256,18 +264,56 @@ view address model =
             Array.map (\r ->  Array.map (\c -> Html.td [] [spinToDiv c]) r) model.spinMatrix
     ]
 
+listTakeLast list n = List.drop (List.length list - n) list
+
+listSample : List (Float, Float) -> Int -> List (Float, Float)
+listSample list points =
+  let
+    listSample' agg rest points =
+      if List.length rest <= points then
+        if List.length rest == 1 then
+          List.concat [agg, rest]
+        else
+          List.concat [agg, [tupleListAverage <| List.take (List.length rest - 1) rest], listTakeLast rest 1]
+      else
+        let
+          ps = tupleListAverage <| List.take points rest
+          agg' = List.append agg [ps]
+        in
+          listSample' agg' (List.drop points rest) points
+  in
+    listSample' (List.take 1 list) (List.drop 1 list) points
+
+sampledTo points list =
+  let
+    sampleFrom = List.length list // points
+  in
+    if sampleFrom > 1 then
+      listSample list sampleFrom
+    else
+      list
+
+listAverage list = (List.foldl (+) 0 list) / (toFloat <| List.length list)
+tupleListAverage list =
+  let
+    (x, y) = List.foldl (\(x, y) (x', y') -> (x + x', y + y')) (0, 0) list
+  in
+    (x /  (toFloat << List.length <| list), y / (toFloat << List.length <| list))
+
 stepOne : Model -> Model
 stepOne model =
   let
     (seed, energyDifferences, magnetizationDifferences, spinMatrix) = metropolis model.spinMatrix 1 model.randomSeed model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)--metropolis 2 model.randomSeed Array.empty Array.empty model.spinMatrix model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)
-    energiesAppended = List.append model.energyDifferences <| Array.toList energyDifferences
-    energyDifferences' = List.drop (List.length energiesAppended - 100) energiesAppended
-    magnetizationsAppended = List.append model.magnetizationDifferences <| Array.toList magnetizationDifferences
-    magnetizationDifferences' = List.drop (List.length magnetizationsAppended - 100) magnetizationsAppended
+    energiesAppended = List.append model.energyDifferences <| List.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) <| Array.toList energyDifferences
+    magnetizationsAppended = List.append model.magnetizationDifferences <| List.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) <| Array.toList magnetizationDifferences
     totalEnergy' = totalEnergy spinMatrix model.magneticFieldStrength model.interactionStrength
+    totalEnergies = List.append model.totalEnergies [(toFloat model.currentStep, totalEnergy')]
     totalMagnetization' = totalMagnetization spinMatrix
+    totalMagnetizations = List.append model.totalMagnetizations [(toFloat model.currentStep, totalMagnetization')]
+    avgEnergy = ((listAverage <| List.map snd totalEnergies) + model.avgEnergy) / 2.0
+    avgMagnetization = ((listAverage <| List.map snd totalMagnetizations) + model.avgMagnetization) / 2.0
   in
-    { model | spinMatrix = spinMatrix, randomSeed = seed, energyDifferences = energyDifferences', magnetizationDifferences = magnetizationDifferences', totalEnergies = List.append model.totalEnergies [totalEnergy'], totalMagnetizations = List.append model.totalMagnetizations [totalMagnetization']}
+    { model | spinMatrix = spinMatrix, randomSeed = seed, energyDifferences = energiesAppended, magnetizationDifferences = magnetizationsAppended, totalEnergies = totalEnergies, totalMagnetizations = totalMagnetizations, avgEnergy = avgEnergy, avgMagnetization = avgMagnetization, currentStep = model.currentStep + 1 }
 
 update : Action -> Model -> Model
 update action model =
@@ -344,9 +390,9 @@ update action model =
             (spinMatrix, seed) = initMatrix (Random model.randomSeed) model.height model.width
           in
             case seed of
-              Just s -> { model | randomSeed = s, spinMatrix = spinMatrix, energyDifferences = []}
+              Just s -> { model | randomSeed = s, spinMatrix = spinMatrix, energyDifferences = [], magnetizationDifferences = [], totalEnergies = [], totalMagnetizations = [], avgEnergy = 0, avgMagnetization = 0, currentStep = 0}
               _ -> model
-        _ -> { model | spinMatrix = fst <| initMatrix configuration' model.height model.width, energyDifferences = []}
+        _ -> { model | spinMatrix = fst <| initMatrix configuration' model.height model.width, energyDifferences = [], magnetizationDifferences = [], totalEnergies = [], totalMagnetizations = [], avgEnergy = 0, avgMagnetization = 0, currentStep = 0 }
 
     ToggleRunning ->
       { model | running = not model.running }
@@ -370,32 +416,32 @@ main =
   app.html
 
 type alias Point =
-  { index : Int
+  { index : Float
   , value : Float
   }
 
-samplingSignal = Time.every <| 250* Time.millisecond
+samplingSignal = Time.every <| 5* Time.second
 
 port energyDifferences : Signal (List Point)
 port energyDifferences =
   Signal.sampleOn
     samplingSignal
-    (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.energyDifferences) app.model)
+    (Signal.map (\m -> List.map (\(i, v) -> { index = i, value = v}) <| sampledTo 30 m.energyDifferences) app.model)
 
 port magnetizationDifferences : Signal (List Point)
 port magnetizationDifferences =
   Signal.sampleOn
     samplingSignal
-    (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.magnetizationDifferences) app.model)
+    (Signal.map (\m -> List.map (\(i, v) -> { index = i, value = v}) <| sampledTo 30 m.magnetizationDifferences) app.model)
 
 port totalEnergies: Signal (List Point)
 port totalEnergies=
   Signal.sampleOn
     samplingSignal
-    (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.totalEnergies) app.model)
+    (Signal.map (\m -> List.map (\(i, v) -> { index = i, value = v}) <| sampledTo 30 m.totalEnergies) app.model)
 
 port totalMagnetizations: Signal (List Point)
 port totalMagnetizations =
   Signal.sampleOn
     samplingSignal
-    (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.totalMagnetizations) app.model)
+    (Signal.map (\m -> List.map (\(i, v) -> { index = i, value = v}) <| sampledTo 30 m.totalMagnetizations) app.model)
