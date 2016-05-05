@@ -169,7 +169,6 @@ type Action
   | ChangeInteractionStrength String
   | StepOneMetropolis
   | RunMetropolis
-  | ChangeWindowSize (Int, Int)
   | ToggleRunning
 
 type alias Model =
@@ -333,7 +332,7 @@ update action model =
     ToggleRunning ->
       { model | running = not model.running }
 
-    _ ->
+    NoOp ->
       model
 
 runIsing : Signal.Signal Action
