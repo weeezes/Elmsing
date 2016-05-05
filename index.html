@@ -40,13 +40,9 @@
     <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
     <script>
 
-    updateEnergyDifference = createChart("", "Energy difference in step");
-    updateMagnetizationDifference = createChart("", "Magnetization difference in step");
     updateTotalEnergy = createChart("", "Total energy");
     updateTotalMagnetization = createChart("", "Total magnetization");
 
-		app.ports.energyDifferences.subscribe(updateEnergyDifference);
-    app.ports.magnetizationDifferences.subscribe(updateMagnetizationDifference);
     app.ports.totalEnergies.subscribe(updateTotalEnergy);
     app.ports.totalMagnetizations.subscribe(updateTotalMagnetization);
 
