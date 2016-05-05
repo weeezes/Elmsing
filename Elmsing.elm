@@ -217,6 +217,24 @@ initialModel =
     avgMagnetization = 0
   }
 
+floatToString f =
+  let
+    s = toString f
+    separator =
+      if String.contains "." s then
+        "."
+      else
+        ","
+    parts = String.split separator s
+    a = List.head parts
+          |> withDefault "0"
+    b = List.tail parts
+          |> withDefault ["0"]
+          |> String.concat
+          |> String.left 3
+  in
+    a ++ "." ++ b
+
 numberInputWithLabel label placeholder value signal =
   Html.tr
     []
@@ -254,9 +272,9 @@ view address model =
     , Html.button [Events.onClick address StepOneMetropolis] [ Html.text "Step"]
     , Html.button [Events.onClick address ToggleRunning] [Html.text <| if model.running then "Stop" else "Start"]
     , Html.br [] []
-    , Html.text <| toString model.avgEnergy
+    , Html.text <| (floatToString model.avgEnergy) ++ "±" ++ (floatToString <| standardDeviation <| List.map snd model.totalEnergies)
     , Html.br [] []
-    , Html.text <| toString model.avgMagnetization
+    , Html.text <| (floatToString model.avgMagnetization) ++ "±" ++ (floatToString <| standardDeviation <| List.map snd model.totalMagnetizations)
     , Html.br [] []
     , Html.table [] <|
         Array.toList <|
