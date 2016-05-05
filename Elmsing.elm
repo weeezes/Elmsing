@@ -88,6 +88,24 @@ spinMagnetizationAt spinMatrix i j =
   in
     withDefault 0 <| Maybe.map spinMagnetization <| get j' spinMatrix `andThen` get i'
 
+totalMagnetization : SpinMatrix -> Float
+totalMagnetization spinMatrix =
+  let
+    (height, width) = shape spinMatrix
+    totalMagnetization' i j spinMatrix magnetization =
+      if i == height - 1 && j == width - 1 then
+        magnetization
+      else
+        let
+          magnetization' = magnetization + spinMagnetizationAt spinMatrix i j
+        in
+          if j == width - 1 then
+            totalMagnetization' (i + 1) 0 spinMatrix magnetization'
+          else
+            totalMagnetization' i (j + 1) spinMatrix magnetization'
+  in
+    totalMagnetization' 0 0 spinMatrix 0
+
 pointEnergy : SpinMatrix -> Int -> Int -> Float -> Float -> Float
 pointEnergy spinMatrix i j magneticFieldStrength interactionStrength =
   let
