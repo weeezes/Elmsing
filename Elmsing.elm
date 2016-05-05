@@ -185,7 +185,10 @@ type alias Model =
     magneticFieldStrength : Float,
     interactionStrength : Float,
     running : Bool,
-    energyDifferences : List Float
+    energyDifferences : List Float,
+    magnetizationDifferences : List Float,
+    totalEnergies : List Float,
+    totalMagnetizations : List Float
   }
 
 initialModel : Model
@@ -199,7 +202,10 @@ initialModel =
     magneticFieldStrength = 1,
     interactionStrength = 1,
     running = False,
-    energyDifferences = []
+    energyDifferences = [],
+    magnetizationDifferences = [],
+    totalEnergies = [],
+    totalMagnetizations = []
   }
 
 numberInputWithLabel label placeholder value signal =
