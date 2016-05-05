@@ -374,26 +374,28 @@ type alias Point =
   , value : Float
   }
 
+samplingSignal = Time.every <| 250* Time.millisecond
+
 port energyDifferences : Signal (List Point)
 port energyDifferences =
   Signal.sampleOn
-    (Time.every (1 * Time.second))
+    samplingSignal
     (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.energyDifferences) app.model)
 
 port magnetizationDifferences : Signal (List Point)
 port magnetizationDifferences =
   Signal.sampleOn
-    (Time.every (1 * Time.second))
+    samplingSignal
     (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.magnetizationDifferences) app.model)
 
 port totalEnergies: Signal (List Point)
 port totalEnergies=
   Signal.sampleOn
-    (Time.every (1 * Time.second))
+    samplingSignal
     (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.totalEnergies) app.model)
 
 port totalMagnetizations: Signal (List Point)
 port totalMagnetizations =
   Signal.sampleOn
-    (Time.every (1 * Time.second))
+    samplingSignal
     (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.totalMagnetizations) app.model)
