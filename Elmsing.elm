@@ -300,6 +300,14 @@ tupleListAverage list =
   in
     (x /  (toFloat << List.length <| list), y / (toFloat << List.length <| list))
 
+standardDeviation list =
+  let
+    avg = listAverage list
+    d = List.map (\v -> (v - avg)^2) list |> List.foldl (+) 0
+    n = toFloat <| List.length list
+  in
+    sqrt <| d / (n - 1)
+
 stepOne : Model -> Model
 stepOne model =
   let
