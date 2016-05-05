@@ -134,24 +134,28 @@ fullEnergy spinMatrix i j magneticFieldStrength interactionStrength energy =
           fullEnergy spinMatrix i (j + 1) magneticFieldStrength interactionStrength energy'
 
 
-metropolis iterations seed energies magnetizations spinMatrix magneticFieldStrength interactionStrength temperature =
-  if iterations == 0 then
-    (seed, energies, magnetizations, spinMatrix)
-  else
-    let
-      (height, width) = shape spinMatrix
-      ((i, j), seed') = Random.generate (Random.pair (Random.int 0 height) (Random.int 0 width)) seed
-      (r, seed'') = Random.generate (Random.float 0 1) seed'
-      dE = -2.0 * pointEnergy spinMatrix i j magneticFieldStrength interactionStrength
-      dM = -2.0 * spinMagnetizationAt spinMatrix i j
-    in
-      if dE < 0 || r < e^(-dE/temperature) then
-        let
-          spinMatrix' = flipSpinAt spinMatrix i j
-        in
-          metropolis (iterations - 1) seed'' (Array.push dE energies) (Array.push dM magnetizations) spinMatrix' magneticFieldStrength interactionStrength temperature
+metropolis spinMatrix iterations seed magneticFieldStrength interactionStrength temperature =
+  let
+    metropolis' iterations seed energyDifferences magnetizationDifferences spinMatrix magneticFieldStrength interactionStrength temperature =
+      if iterations < 0 then
+        (seed, energyDifferences, magnetizationDifferences, spinMatrix)
       else
-        metropolis (iterations - 1) seed'' (Array.push 0 energies) (Array.push 0 magnetizations) spinMatrix magneticFieldStrength interactionStrength temperature
+        let
+          (height, width) = shape spinMatrix
+          ((i, j), seed') = Random.generate (Random.pair (Random.int 0 height) (Random.int 0 width)) seed
+          (r, seed'') = Random.generate (Random.float 0 1) seed'
+          dE = -2.0 * pointEnergy spinMatrix i j magneticFieldStrength interactionStrength
+          dM = -2.0 * spinMagnetizationAt spinMatrix i j
+        in
+          if dE < 0 || r < e^(-dE/temperature) then
+            let
+              spinMatrix' = flipSpinAt spinMatrix i j
+            in
+              metropolis' (iterations - 1) seed'' (Array.push dE energyDifferences) (Array.push dM magnetizationDifferences) spinMatrix' magneticFieldStrength interactionStrength temperature
+          else
+            metropolis' (iterations - 1) seed'' (Array.push 0 energyDifferences) (Array.push 0 magnetizationDifferences) spinMatrix magneticFieldStrength interactionStrength temperature
+  in
+    metropolis' iterations seed Array.empty Array.empty spinMatrix magneticFieldStrength interactionStrength temperature
 
 spinToDiv : Spin -> Html
 spinToDiv spin =
@@ -181,7 +185,7 @@ type alias Model =
     magneticFieldStrength : Float,
     interactionStrength : Float,
     running : Bool,
-    energies : List Float
+    energyDifferences : List Float
   }
 
 initialModel : Model
@@ -195,7 +199,7 @@ initialModel =
     magneticFieldStrength = 1,
     interactionStrength = 1,
     running = False,
-    energies = []
+    energyDifferences = []
   }
 
 numberInputWithLabel label placeholder value signal =
@@ -246,9 +250,11 @@ view address model =
 stepOne : Model -> Model
 stepOne model =
   let
-    (seed, energies, _, spinMatrix) = metropolis 2 model.randomSeed Array.empty Array.empty model.spinMatrix model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)
+    (seed, energyDifferences, _, spinMatrix) = metropolis model.spinMatrix 1 model.randomSeed model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)--metropolis 2 model.randomSeed Array.empty Array.empty model.spinMatrix model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)
+    energiesAppended = List.append model.energyDifferences <| Array.toList energyDifferences
+    energyDifferences' = List.drop (List.length energiesAppended - 100) energiesAppended
   in
-    { model | spinMatrix = spinMatrix, randomSeed = seed, energies = List.append model.energies <| Array.toList energies}
+    { model | spinMatrix = spinMatrix, randomSeed = seed, energyDifferences = energyDifferences'}
 
 update : Action -> Model -> Model
 update action model =
@@ -325,9 +331,9 @@ update action model =
             (spinMatrix, seed) = initMatrix (Random model.randomSeed) model.height model.width
           in
             case seed of
-              Just s -> { model | randomSeed = s, spinMatrix = spinMatrix }
+              Just s -> { model | randomSeed = s, spinMatrix = spinMatrix, energyDifferences = []}
               _ -> model
-        _ -> { model | spinMatrix = fst <| initMatrix configuration' model.height model.width}
+        _ -> { model | spinMatrix = fst <| initMatrix configuration' model.height model.width, energyDifferences = []}
 
     ToggleRunning ->
       { model | running = not model.running }
@@ -359,4 +365,4 @@ port energy : Signal (List Point)
 port energy =
   Signal.sampleOn
     (Time.every (5 * Time.second))
-    (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.energies) app.model)
+    (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.energyDifferences) app.model)
