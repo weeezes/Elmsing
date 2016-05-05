@@ -1,7 +1,7 @@
 {
     "version": "1.0.0",
-    "summary": "A visual simulation of the Ising model, implementing the Metropolis algorithm in Elm",
-    "repository": "https://github.com/weeezes/Elmsing.git",
+    "summary": "Ising model simulation, using the Metropolis algorithm in Elm",
+    "repository": "https://github.com/weeezes/elmsing.git",
     "license": "MIT",
     "source-directories": [
         "."
