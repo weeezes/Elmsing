@@ -264,7 +264,7 @@ view address model =
             Array.map (\r ->  Array.map (\c -> Html.td [] [spinToDiv c]) r) model.spinMatrix
     ]
 
-listTakeLast list n = List.drop (List.length list - n) list
+listTakeLast n list = List.drop (List.length list - n) list
 
 listSample : List (Float, Float) -> Int -> List (Float, Float)
 listSample list points =
@@ -274,7 +274,7 @@ listSample list points =
         if List.length rest == 1 then
           List.concat [agg, rest]
         else
-          List.concat [agg, [tupleListAverage <| List.take (List.length rest - 1) rest], listTakeLast rest 1]
+          List.concat [agg, [tupleListAverage <| List.take (List.length rest - 1) rest], listTakeLast 1 rest]
       else
         let
           ps = tupleListAverage <| List.take points rest
@@ -310,8 +310,8 @@ stepOne model =
     totalEnergies = List.append model.totalEnergies [(toFloat model.currentStep, totalEnergy')]
     totalMagnetization' = totalMagnetization spinMatrix
     totalMagnetizations = List.append model.totalMagnetizations [(toFloat model.currentStep, totalMagnetization')]
-    avgEnergy = ((listAverage <| List.map snd totalEnergies) + model.avgEnergy) / 2.0
-    avgMagnetization = ((listAverage <| List.map snd totalMagnetizations) + model.avgMagnetization) / 2.0
+    avgEnergy = listAverage <| List.map snd <| listTakeLast 2000 totalEnergies
+    avgMagnetization = listAverage <| List.map snd <| listTakeLast 2000 totalMagnetizations
   in
     { model | spinMatrix = spinMatrix, randomSeed = seed, energyDifferences = energiesAppended, magnetizationDifferences = magnetizationsAppended, totalEnergies = totalEnergies, totalMagnetizations = totalMagnetizations, avgEnergy = avgEnergy, avgMagnetization = avgMagnetization, currentStep = model.currentStep + 1 }
 
