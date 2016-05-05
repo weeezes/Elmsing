@@ -410,7 +410,7 @@ update action model =
 
 runIsing : Signal.Signal Action
 runIsing =
-  Signal.map (\_ -> RunMetropolis) <| Time.every <| 20*Time.millisecond
+  Signal.map (\_ -> RunMetropolis) <| Time.every <| Time.millisecond
 
 app = StartApp.start
   { init = (initialModel, Effects.none)
