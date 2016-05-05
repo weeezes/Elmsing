@@ -174,8 +174,9 @@ type Action
   | ChangeTemperature String
   | ChangeMagneticFieldStrength String
   | ChangeInteractionStrength String
-  | StepOneMetropolis
+  | StepMetropolis
   | RunMetropolis
+  | ChangeMetropolisSteps String
   | ToggleRunning
 
 type alias Model =
@@ -183,6 +184,7 @@ type alias Model =
     spinMatrix : SpinMatrix,
     width : Int,
     height : Int,
+    steps : Int,
     currentConfiguration : InitialConfiguration,
     temperature : Int,
     magneticFieldStrength : Float,
@@ -203,6 +205,7 @@ initialModel =
     spinMatrix = fst <| initMatrix (Random <| Random.initialSeed 0) 5 5,
     width = 5,
     height = 5,
+    steps = 1,
     currentConfiguration = Random <| Random.initialSeed 0,
     temperature = 5,
     magneticFieldStrength = 1,
@@ -264,12 +267,13 @@ view address model =
         , numberInputWithLabel "Interaction strength: " "Interaction strength" model.interactionStrength (\str -> Signal.message address (ChangeInteractionStrength str))
         , numberInputWithLabel "Field strength: " "Field strength" model.magneticFieldStrength (\str -> Signal.message address (ChangeMagneticFieldStrength str))
         , numberInputWithLabel "Temperature: " "Temperature" model.temperature (\str -> Signal.message address (ChangeTemperature str))
+        , numberInputWithLabel "Steps: " "Steps" model.steps (\str -> Signal.message address (ChangeMetropolisSteps str))
         ]
     , Html.br [] []
     , Html.button [Events.onClick address (ChangeConfiguration (Random model.randomSeed))] [ Html.text "Randomize"]
     , Html.button [Events.onClick address (ChangeConfiguration Ups)] [ Html.text "All up"]
     , Html.button [Events.onClick address (ChangeConfiguration Downs)] [ Html.text "All down"]
-    , Html.button [Events.onClick address StepOneMetropolis] [ Html.text "Step"]
+    , Html.button [Events.onClick address StepMetropolis] [ Html.text "Step"]
     , Html.button [Events.onClick address ToggleRunning] [Html.text <| if model.running then "Stop" else "Start"]
     , Html.br [] []
     , Html.text <| "Energy: " ++ (floatToString model.avgEnergy) ++ "±" ++ (floatToString <| standardDeviation <| List.map snd model.totalEnergies)
@@ -326,10 +330,10 @@ standardDeviation list =
   in
     sqrt <| d / (n - 1)
 
-stepOne : Model -> Model
-stepOne model =
+stepN : Int -> Model -> Model
+stepN n model =
   let
-    (seed, energyDifferences, magnetizationDifferences, spinMatrix) = metropolis model.spinMatrix 1 model.randomSeed model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)--metropolis 2 model.randomSeed Array.empty Array.empty model.spinMatrix model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)
+    (seed, energyDifferences, magnetizationDifferences, spinMatrix) = metropolis model.spinMatrix n model.randomSeed model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)
     energiesAppended = List.append model.energyDifferences <| List.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) <| Array.toList energyDifferences
     magnetizationsAppended = List.append model.magnetizationDifferences <| List.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) <| Array.toList magnetizationDifferences
     totalEnergy' = totalEnergy spinMatrix model.magneticFieldStrength model.interactionStrength
@@ -339,7 +343,7 @@ stepOne model =
     avgEnergy = listAverage <| List.map snd <| listTakeLast 2000 totalEnergies
     avgMagnetization = listAverage <| List.map snd <| listTakeLast 2000 totalMagnetizations
   in
-    { model | spinMatrix = spinMatrix, randomSeed = seed, energyDifferences = energiesAppended, magnetizationDifferences = magnetizationsAppended, totalEnergies = totalEnergies, totalMagnetizations = totalMagnetizations, avgEnergy = avgEnergy, avgMagnetization = avgMagnetization, currentStep = model.currentStep + 1 }
+    { model | spinMatrix = spinMatrix, randomSeed = seed, energyDifferences = energiesAppended, magnetizationDifferences = magnetizationsAppended, totalEnergies = totalEnergies, totalMagnetizations = totalMagnetizations, avgEnergy = avgEnergy, avgMagnetization = avgMagnetization, currentStep = model.currentStep + n}
 
 update : Action -> Model -> Model
 update action model =
@@ -400,14 +404,33 @@ update action model =
       else
         { model | interactionStrength = 0 }
 
-    StepOneMetropolis ->
-      stepOne model
+    StepMetropolis ->
+      let
+        model' = stepN model.steps model
+      in
+        { model' | running = False }
 
     RunMetropolis ->
       if model.running then
-        stepOne model
+        if model.steps <= 100 then
+          stepN model.steps model
+        else
+          let
+            model' = stepN 100 model
+          in
+            { model' | steps = 100 }
       else
         model
+
+    ChangeMetropolisSteps steps' ->
+      if String.length steps' > 0 then
+        case toInt steps' of
+          Ok steps ->
+            { model | steps = steps }
+          _ ->
+            model
+      else
+        { model | steps = 1 }
 
     ChangeConfiguration configuration' ->
       case configuration' of
