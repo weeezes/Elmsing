@@ -118,21 +118,24 @@ pointEnergy spinMatrix i j magneticFieldStrength interactionStrength =
   in
     -1 * magneticFieldStrength * spin - interactionStrength * spin * neighbourSum
 
-fullEnergy spinMatrix i j magneticFieldStrength interactionStrength energy =
+totalEnergy spinMatrix magneticFieldStrength interactionStrength =
   let
-    (height, width) = shape spinMatrix
-  in
-    if i == height - 1 && j == width - 1 then
-      energy
-    else
+    totalEnergy' spinMatrix i j magneticFieldStrength interactionStrength energy =
       let
-        energy' = energy + pointEnergy spinMatrix i j magneticFieldStrength (0.5 * interactionStrength)
+        (height, width) = shape spinMatrix
       in
-        if j == width - 1 then
-          fullEnergy spinMatrix (i + 1) 0 magneticFieldStrength interactionStrength energy'
+        if i == height - 1 && j == width - 1 then
+          energy
         else
-          fullEnergy spinMatrix i (j + 1) magneticFieldStrength interactionStrength energy'
-
+          let
+            energy' = energy + pointEnergy spinMatrix i j magneticFieldStrength (0.5 * interactionStrength)
+          in
+            if j == width - 1 then
+              totalEnergy' spinMatrix (i + 1) 0 magneticFieldStrength interactionStrength energy'
+            else
+              totalEnergy' spinMatrix i (j + 1) magneticFieldStrength interactionStrength energy'
+  in
+    totalEnergy' spinMatrix 0 0 magneticFieldStrength interactionStrength 0
 
 metropolis spinMatrix iterations seed magneticFieldStrength interactionStrength temperature =
   let
@@ -245,7 +248,7 @@ view address model =
     , Html.button [Events.onClick address StepOneMetropolis] [ Html.text "Step"]
     , Html.button [Events.onClick address ToggleRunning] [Html.text <| if model.running then "Stop" else "Start"]
     , Html.br [] []
-    , Html.text <| toString <| fullEnergy model.spinMatrix 0 0 model.magneticFieldStrength model.interactionStrength 0
+    , Html.text <| toString <| totalEnergy model.spinMatrix model.magneticFieldStrength model.interactionStrength
     , Html.br [] []
     , Html.table [] <|
         Array.toList <|
@@ -261,8 +264,10 @@ stepOne model =
     energyDifferences' = List.drop (List.length energiesAppended - 100) energiesAppended
     magnetizationsAppended = List.append model.magnetizationDifferences <| Array.toList magnetizationDifferences
     magnetizationDifferences' = List.drop (List.length magnetizationsAppended - 100) magnetizationsAppended
+    totalEnergy' = totalEnergy spinMatrix model.magneticFieldStrength model.interactionStrength
+    totalMagnetization' = totalMagnetization spinMatrix
   in
-    { model | spinMatrix = spinMatrix, randomSeed = seed, energyDifferences = energyDifferences', magnetizationDifferences = magnetizationDifferences'}
+    { model | spinMatrix = spinMatrix, randomSeed = seed, energyDifferences = energyDifferences', magnetizationDifferences = magnetizationDifferences', totalEnergies = List.append model.totalEnergies [totalEnergy'], totalMagnetizations = List.append model.totalMagnetizations [totalMagnetization']}
 
 update : Action -> Model -> Model
 update action model =
@@ -380,3 +385,15 @@ port magnetizationDifferences =
   Signal.sampleOn
     (Time.every (1 * Time.second))
     (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.magnetizationDifferences) app.model)
+
+port totalEnergies: Signal (List Point)
+port totalEnergies=
+  Signal.sampleOn
+    (Time.every (1 * Time.second))
+    (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.totalEnergies) app.model)
+
+port totalMagnetizations: Signal (List Point)
+port totalMagnetizations =
+  Signal.sampleOn
+    (Time.every (1 * Time.second))
+    (Signal.map (\m -> List.indexedMap (\i v -> { index = i, value = v}) m.totalMagnetizations) app.model)

@@ -47,8 +47,8 @@
 
 		app.ports.energyDifferences.subscribe(updateEnergyDifference);
     app.ports.magnetizationDifferences.subscribe(updateMagnetizationDifference);
-    app.ports.energy.subscribe(updateTotalEnergy);
-    app.ports.energy.subscribe(updateTotalMagnetization);
+    app.ports.totalEnergies.subscribe(updateTotalEnergy);
+    app.ports.totalMagnetizations.subscribe(updateTotalMagnetization);
 
     function createChart(xLabel, yLabel) {
       var margin = {top: 20, right: 20, bottom: 30, left: 50},
@@ -110,7 +110,6 @@
           .attr("d", line);
   	  }
 
-      console.log("created chart: " + yLabel);
       return add_points
     }
     </script>
