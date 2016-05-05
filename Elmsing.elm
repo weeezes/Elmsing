@@ -272,9 +272,9 @@ view address model =
     , Html.button [Events.onClick address StepOneMetropolis] [ Html.text "Step"]
     , Html.button [Events.onClick address ToggleRunning] [Html.text <| if model.running then "Stop" else "Start"]
     , Html.br [] []
-    , Html.text <| (floatToString model.avgEnergy) ++ "±" ++ (floatToString <| standardDeviation <| List.map snd model.totalEnergies)
+    , Html.text <| "Energy: " ++ (floatToString model.avgEnergy) ++ "±" ++ (floatToString <| standardDeviation <| List.map snd model.totalEnergies)
     , Html.br [] []
-    , Html.text <| (floatToString model.avgMagnetization) ++ "±" ++ (floatToString <| standardDeviation <| List.map snd model.totalMagnetizations)
+    , Html.text <| "Magnetization: " ++ (floatToString model.avgMagnetization) ++ "±" ++ (floatToString <| standardDeviation <| List.map snd model.totalMagnetizations)
     , Html.br [] []
     , Html.table [] <|
         Array.toList <|
