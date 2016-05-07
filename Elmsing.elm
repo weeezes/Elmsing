@@ -83,10 +83,10 @@ spinMagnetizationAt : SpinMatrix -> Int -> Int -> Float
 spinMagnetizationAt spinMatrix i j =
   let
     (height, width) = shape spinMatrix
-    i' = boundaryCondition 0 width i
-    j' = boundaryCondition 0 height j
+    i' = boundaryCondition 0 height i
+    j' = boundaryCondition 0 width j
   in
-    withDefault 0 <| Maybe.map spinMagnetization <| get j' spinMatrix `andThen` get i'
+    withDefault 0 <| Maybe.map spinMagnetization <| get i' spinMatrix `andThen` get j'
 
 totalMagnetization : SpinMatrix -> Float
 totalMagnetization spinMatrix =
