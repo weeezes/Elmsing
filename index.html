@@ -1,32 +1,32 @@
 <!DOCTYPE html>
 <html>
   <head>
-		<meta charset="utf-8"/>
+    <meta charset="utf-8"/>
     <!--<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.97.5/css/materialize.min.css">-->
     <script src="elm.js"></script>
-		<style>
-			body {
-			  font: 10px sans-serif;
-			}
+    <style>
+      body {
+        font: 10px sans-serif;
+      }
 
-			.axis path,
-			.axis line {
-			  fill: none;
-			  stroke: #000;
-			  shape-rendering: crispEdges;
-			}
+      .axis path,
+      .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+      }
 
-			.x.axis path {
-			  display: none;
-			}
+      .x.axis path {
+        display: none;
+      }
 
-			.line {
-			  fill: none;
-			  stroke: steelblue;
-			  stroke-width: 1.5px;
-			}
+      .line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 1.5px;
+      }
 
-			</style>
+      </style>
   </head>
   <body>
     <div id="main-frame" class="container"></div>
@@ -40,8 +40,8 @@
     <script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
     <script>
 
-    updateTotalEnergy = createChart("", "Total energy");
-    updateTotalMagnetization = createChart("", "Total magnetization");
+    updateTotalEnergy = createChart("Steps", "Total energy");
+    updateTotalMagnetization = createChart("Steps", "Total magnetization");
 
     app.ports.totalEnergies.subscribe(updateTotalEnergy);
     app.ports.totalMagnetizations.subscribe(updateTotalMagnetization);
@@ -80,31 +80,37 @@
       svg.append("g")
         .attr("class", "x axis")
         .attr("transform", "translate(0," + height + ")")
-        .call(xAxis);
+        .call(xAxis)
+          .append("text")
+          .attr("x", "50%")
+          .attr("dx", "-2.71em")
+          .attr("y", "2.5em")
+          .style("text-anchor", "start")
+          .text(xLabel);
 
-  		svg.append("g")
-  			.append("g")
-          .attr("class", "y axis")
-          .call(yAxis)
-  				.append("text")
-  	      .attr("transform", "rotate(-90)")
-  	      .attr("y", 6)
-  	      .attr("dy", ".71em")
-  	      .style("text-anchor", "end")
-  	      .text(yLabel);
+      svg.append("g")
+        .append("g")
+        .attr("class", "y axis")
+        .call(yAxis)
+          .append("text")
+          .attr("transform", "rotate(-90)")
+          .attr("y", 6)
+          .attr("dy", ".71em")
+          .style("text-anchor", "end")
+          .text(yLabel);
 
-  		function add_points(data) {
+      function add_points(data) {
         x.domain(d3.extent(data, function(d) { return d.index; }));
         y.domain(d3.extent(data, function(d) { return d.value; }));
 
-  			svg.selectAll(".x").call(xAxis);
-  			svg.selectAll(".y").call(yAxis);
+        svg.selectAll(".x").call(xAxis);
+        svg.selectAll(".y").call(yAxis);
 
         svg.selectAll("path")
           .datum(data)
           .attr("class", "line")
           .attr("d", line);
-  	  }
+      }
 
       return add_points
     }
