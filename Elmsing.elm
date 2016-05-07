@@ -336,8 +336,8 @@ stepN n model =
     (seed, energies, magnetizations, spinMatrix) = metropolis model.spinMatrix n model.randomSeed model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)
     totalEnergies = List.append model.totalEnergies <| Array.toList <| Array.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) energies
     totalMagnetizations = List.append model.totalMagnetizations <| Array.toList <| Array.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) magnetizations
-    avgEnergy = listAverage <| List.map snd <| listTakeLast 2000 totalEnergies
-    avgMagnetization = listAverage <| List.map snd <| listTakeLast 2000 totalMagnetizations
+    avgEnergy = listAverage <| List.map snd <| listTakeLast 100000 totalEnergies
+    avgMagnetization = listAverage <| List.map snd <| listTakeLast 100000 totalMagnetizations
   in
     { model | spinMatrix = spinMatrix, randomSeed = seed, totalEnergies = totalEnergies, totalMagnetizations = totalMagnetizations, avgEnergy = avgEnergy, avgMagnetization = avgMagnetization, currentStep = model.currentStep + n}
 
