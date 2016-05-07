@@ -276,9 +276,9 @@ view address model =
     , Html.button [Events.onClick address StepMetropolis] [ Html.text "Step"]
     , Html.button [Events.onClick address ToggleRunning] [Html.text <| if model.running then "Stop" else "Start"]
     , Html.br [] []
-    , Html.text <| "Energy: " ++ (floatToString model.avgEnergy) ++ "±" ++ (floatToString <| standardDeviation <| List.map snd model.totalEnergies)
+    , Html.text <| "Energy: " ++ (floatToString model.avgEnergy) ++ "±" ++ (floatToString << standardDeviation << listTakeLastPercentage 0.85 <| List.map snd model.totalEnergies)
     , Html.br [] []
-    , Html.text <| "Magnetization: " ++ (floatToString model.avgMagnetization) ++ "±" ++ (floatToString <| standardDeviation <| List.map snd model.totalMagnetizations)
+    , Html.text <| "Magnetization: " ++ (floatToString model.avgMagnetization) ++ "±" ++ (floatToString << standardDeviation << listTakeLastPercentage 0.85 <| List.map snd model.totalMagnetizations)
     , Html.br [] []
     , Html.table [] <|
         Array.toList <|
@@ -287,6 +287,7 @@ view address model =
     ]
 
 listTakeLast n list = List.drop (List.length list - n) list
+listTakeLastPercentage p list = listTakeLast (round << (*) p << toFloat << List.length <| list) list
 
 listSample : List (Float, Float) -> Int -> List (Float, Float)
 listSample list points =
@@ -336,8 +337,8 @@ stepN n model =
     (seed, energies, magnetizations, spinMatrix) = metropolis model.spinMatrix n model.randomSeed model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)
     totalEnergies = List.append model.totalEnergies <| Array.toList <| Array.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) energies
     totalMagnetizations = List.append model.totalMagnetizations <| Array.toList <| Array.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) magnetizations
-    avgEnergy = listAverage <| List.map snd <| listTakeLast 100000 totalEnergies
-    avgMagnetization = listAverage <| List.map snd <| listTakeLast 100000 totalMagnetizations
+    avgEnergy = listAverage <| List.map snd <| listTakeLastPercentage 0.85 totalEnergies
+    avgMagnetization = listAverage <| List.map snd <| listTakeLastPercentage 0.85 totalMagnetizations
   in
     { model | spinMatrix = spinMatrix, randomSeed = seed, totalEnergies = totalEnergies, totalMagnetizations = totalMagnetizations, avgEnergy = avgEnergy, avgMagnetization = avgMagnetization, currentStep = model.currentStep + n}
 
