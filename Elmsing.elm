@@ -145,7 +145,7 @@ metropolis spinMatrix iterations seed magneticFieldStrength interactionStrength 
       else
         let
           (height, width) = shape spinMatrix
-          ((i, j), seed') = Random.generate (Random.pair (Random.int 0 height) (Random.int 0 width)) seed
+          ((i, j), seed') = Random.generate (Random.pair (Random.int 0 (height-1)) (Random.int 0 (width-1))) seed
           (r, seed'') = Random.generate (Random.float 0 1) seed'
           dE = -2.0 * pointEnergy spinMatrix i j magneticFieldStrength interactionStrength
           dM = -2.0 * spinMagnetizationAt spinMatrix i j
