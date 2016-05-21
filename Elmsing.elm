@@ -1,19 +1,16 @@
-module Main (..) where
+port module Main exposing (..)
 
 import Html exposing (Html)
+import Html.App as App
 import Html.Events as Events
 import Html.Attributes as Attributes
 import Array
 import Array exposing (Array, get, indexedMap)
 import Maybe
 import Maybe exposing (andThen, withDefault)
-import StartApp
-import StartApp.Simple
 import Random
 import Time
 import String exposing (toInt)
-import Window
-import Effects
 
 type Spin = Up | Down
 type InitialConfiguration = Ups | Downs | Random Random.Seed
@@ -42,7 +39,7 @@ initMatrix configuration height width =
         spinGenerator = Random.map (\b -> if b then Up else Down) Random.bool
         spinListGenerator = Random.list width spinGenerator
         spinMatrixGenerator = Random.list height spinListGenerator
-        (spinMatrix,seed) = Random.generate spinMatrixGenerator seed
+        (spinMatrix,seed) = Random.step spinMatrixGenerator seed
       in
         (Array.map Array.fromList <| Array.fromList spinMatrix, Just seed)
 
@@ -145,8 +142,8 @@ metropolis spinMatrix iterations seed magneticFieldStrength interactionStrength 
       else
         let
           (height, width) = shape spinMatrix
-          ((i, j), seed') = Random.generate (Random.pair (Random.int 0 (height-1)) (Random.int 0 (width-1))) seed
-          (r, seed'') = Random.generate (Random.float 0 1) seed'
+          ((i, j), seed') = Random.step (Random.pair (Random.int 0 (height-1)) (Random.int 0 (width-1))) seed
+          (r, seed'') = Random.step (Random.float 0 1) seed'
           dE = -2.0 * pointEnergy spinMatrix i j magneticFieldStrength interactionStrength
           dM = -2.0 * spinMagnetizationAt spinMatrix i j
           lastE = Maybe.withDefault 0 <| Array.get (Array.length energies - 1) energies
@@ -164,13 +161,13 @@ metropolis spinMatrix iterations seed magneticFieldStrength interactionStrength 
   in
     metropolis' iterations seed totalEnergy' totalMagnetization' spinMatrix magneticFieldStrength interactionStrength temperature
 
-spinToDiv : Spin -> Html
+spinToDiv : Spin -> Html Msg
 spinToDiv spin =
   case spin of
     Up -> Html.div [Attributes.class "spinUp", Attributes.style [("width", "30px"), ("height", "30px"), ("backgroundColor", "white")]] []
     Down -> Html.div [Attributes.class "spinDown", Attributes.style [("width", "30px"), ("height", "30px"), ("backgroundColor", "black")]] []
 
-type Action
+type Msg
   = NoOp
   | ChangeWidth String
   | ChangeHeight String
@@ -182,6 +179,7 @@ type Action
   | RunMetropolis
   | ChangeMetropolisSteps String
   | ToggleRunning
+  | UpdatePlots
 
 type alias Model =
   { randomSeed : Random.Seed,
@@ -238,7 +236,7 @@ floatToString f =
   in
     a ++ "." ++ b
 
-numberInputWithLabel label placeholder value signal =
+numberInputWithLabel label placeholder value msg =
   Html.tr
     []
     [ Html.td
@@ -250,31 +248,31 @@ numberInputWithLabel label placeholder value signal =
             [ Attributes.type' "number"
             , Attributes.placeholder placeholder
             , Attributes.value <| toString value
-            , Events.on "input" Events.targetValue signal
+            , Events.onInput msg
             ]
             []
         ]
     ]
 
-view : Signal.Address Action -> Model -> Html
-view address model =
+view : Model -> Html Msg
+view model =
   Html.div
     []
     [ Html.table
         [Attributes.style [("display", "box")]]
-        [ numberInputWithLabel "Width: " "Width" model.width (\str -> Signal.message address (ChangeWidth str))
-        , numberInputWithLabel "Height: " "Height" model.height (\str -> Signal.message address (ChangeHeight str))
-        , numberInputWithLabel "Interaction strength: " "Interaction strength" model.interactionStrength (\str -> Signal.message address (ChangeInteractionStrength str))
-        , numberInputWithLabel "Field strength: " "Field strength" model.magneticFieldStrength (\str -> Signal.message address (ChangeMagneticFieldStrength str))
-        , numberInputWithLabel "Temperature: " "Temperature" model.temperature (\str -> Signal.message address (ChangeTemperature str))
-        , numberInputWithLabel "Steps: " "Steps" model.steps (\str -> Signal.message address (ChangeMetropolisSteps str))
+        [ numberInputWithLabel "Width: " "Width" model.width (\str -> ChangeWidth str)
+        , numberInputWithLabel "Height: " "Height" model.height (\str -> ChangeHeight str)
+        , numberInputWithLabel "Interaction strength: " "Interaction strength" model.interactionStrength (\str -> ChangeInteractionStrength str)
+        , numberInputWithLabel "Field strength: " "Field strength" model.magneticFieldStrength (\str -> ChangeMagneticFieldStrength str)
+        , numberInputWithLabel "Temperature: " "Temperature" model.temperature (\str -> ChangeTemperature str)
+        , numberInputWithLabel "Steps: " "Steps" model.steps (\str -> ChangeMetropolisSteps str)
         ]
     , Html.br [] []
-    , Html.button [Events.onClick address (ChangeConfiguration (Random model.randomSeed))] [ Html.text "Randomize"]
-    , Html.button [Events.onClick address (ChangeConfiguration Ups)] [ Html.text "All up"]
-    , Html.button [Events.onClick address (ChangeConfiguration Downs)] [ Html.text "All down"]
-    , Html.button [Events.onClick address StepMetropolis] [ Html.text "Step"]
-    , Html.button [Events.onClick address ToggleRunning] [Html.text <| if model.running then "Stop" else "Start"]
+    , Html.button [Events.onClick (ChangeConfiguration (Random model.randomSeed))] [ Html.text "Randomize"]
+    , Html.button [Events.onClick (ChangeConfiguration Ups)] [ Html.text "All up"]
+    , Html.button [Events.onClick (ChangeConfiguration Downs)] [ Html.text "All down"]
+    , Html.button [Events.onClick StepMetropolis] [ Html.text "Step"]
+    , Html.button [Events.onClick ToggleRunning] [Html.text <| if model.running then "Stop" else "Start"]
     , Html.br [] []
     , Html.text <| "Energy: " ++ (floatToString model.avgEnergy) ++ "±" ++ (floatToString << standardDeviation << listTakeLastPercentage 0.85 <| List.map snd model.totalEnergies)
     , Html.br [] []
@@ -316,6 +314,9 @@ sampledTo points list =
     else
       list
 
+indexedSample points list =
+  List.map (\(i, v) -> { index = i, value = v}) <| sampledTo points list
+
 listAverage list = (List.foldl (+) 0 list) / (toFloat <| List.length list)
 tupleListAverage list =
   let
@@ -342,7 +343,7 @@ stepN n model =
   in
     { model | spinMatrix = spinMatrix, randomSeed = seed, totalEnergies = totalEnergies, totalMagnetizations = totalMagnetizations, avgEnergy = avgEnergy, avgMagnetization = avgMagnetization, currentStep = model.currentStep + n}
 
-update : Action -> Model -> Model
+update : Msg -> Model -> (Model, Cmd Msg)
 update action model =
   case action of
     ChangeWidth widthString ->
@@ -350,62 +351,62 @@ update action model =
         case toInt widthString of
           Ok width' ->
             if width' < 50 then
-              { model | width = width', spinMatrix = fst <| initMatrix model.currentConfiguration model.height width' }
+              ({ model | width = width', spinMatrix = fst <| initMatrix model.currentConfiguration model.height width' }, Cmd.none)
             else
-              model
+              (model, Cmd.none)
           _ ->
-            model
+            (model, Cmd.none)
       else
-        { model | width = 0 }
+        ({ model | width = 0 }, Cmd.none)
 
     ChangeHeight heightString ->
       if String.length heightString > 0 then
         case toInt heightString of
           Ok height' ->
             if height' < 50 then
-              { model | height = height', spinMatrix = fst <| initMatrix model.currentConfiguration height' model.width }
+              ({ model | height = height', spinMatrix = fst <| initMatrix model.currentConfiguration height' model.width }, Cmd.none)
             else
-              model
+              (model, Cmd.none)
           _ ->
-            model
+            (model, Cmd.none)
       else
-        { model | height = 0 }
+        ({ model | height = 0 }, Cmd.none)
 
     ChangeTemperature temperatureString ->
       if String.length temperatureString > 0 then
         case toInt temperatureString of
           Ok temperature' ->
-            { model | temperature = temperature' }
+            ({ model | temperature = temperature' }, Cmd.none)
           _ ->
-            model
+            (model, Cmd.none)
       else
-        { model | temperature = 0 }
+        ({ model | temperature = 0 }, Cmd.none)
 
     ChangeMagneticFieldStrength magneticFieldStrengthString ->
       if String.length magneticFieldStrengthString > 0 then
         case toInt magneticFieldStrengthString of
           Ok magneticFieldStrength' ->
-            { model | magneticFieldStrength = toFloat magneticFieldStrength' }
+            ({ model | magneticFieldStrength = toFloat magneticFieldStrength' }, Cmd.none)
           _ ->
-            model
+            (model, Cmd.none)
       else
-        { model | magneticFieldStrength = 0 }
+        ({ model | magneticFieldStrength = 0 }, Cmd.none)
 
     ChangeInteractionStrength interactionStrengthString ->
       if String.length interactionStrengthString > 0 then
         case toInt interactionStrengthString of
           Ok interactionStrength' ->
-            { model | interactionStrength = toFloat interactionStrength' }
+            ({ model | interactionStrength = toFloat interactionStrength' }, Cmd.none)
           _ ->
-            model
+            (model, Cmd.none)
       else
-        { model | interactionStrength = 0 }
+        ({ model | interactionStrength = 0 }, Cmd.none)
 
     StepMetropolis ->
       let
         model' = stepN model.steps model
       in
-        { model' | running = False }
+        ({ model' | running = False }, Cmd.none)
 
     RunMetropolis ->
       if model.running then
@@ -413,24 +414,24 @@ update action model =
           limit = 10000
         in
           if model.steps <= limit then
-            stepN model.steps model
+            (stepN model.steps model, Cmd.none)
           else
             let
               model' = stepN limit model
             in
-              { model' | steps = limit }
+              ({ model' | steps = limit }, Cmd.none)
       else
-        model
+        (model, Cmd.none)
 
     ChangeMetropolisSteps steps' ->
       if String.length steps' > 0 then
         case toInt steps' of
           Ok steps ->
-            { model | steps = steps }
+            ({ model | steps = steps }, Cmd.none)
           _ ->
-            model
+            (model, Cmd.none)
       else
-        { model | steps = 1 }
+        ({ model | steps = 1 }, Cmd.none)
 
     ChangeConfiguration configuration' ->
       case configuration' of
@@ -439,46 +440,44 @@ update action model =
             (spinMatrix, seed) = initMatrix (Random model.randomSeed) model.height model.width
           in
             case seed of
-              Just s -> { model | randomSeed = s, spinMatrix = spinMatrix, totalEnergies = [], totalMagnetizations = [], avgEnergy = 0, avgMagnetization = 0, currentStep = 0}
-              _ -> model
-        _ -> { model | spinMatrix = fst <| initMatrix configuration' model.height model.width, totalEnergies = [], totalMagnetizations = [], avgEnergy = 0, avgMagnetization = 0, currentStep = 0 }
+              Just s -> ({ model | randomSeed = s, spinMatrix = spinMatrix, totalEnergies = [], totalMagnetizations = [], avgEnergy = 0, avgMagnetization = 0, currentStep = 0}, Cmd.none)
+              _ -> (model, Cmd.none)
+        _ -> ({ model | spinMatrix = fst <| initMatrix configuration' model.height model.width, totalEnergies = [], totalMagnetizations = [], avgEnergy = 0, avgMagnetization = 0, currentStep = 0 }, Cmd.none)
 
     ToggleRunning ->
-      { model | running = not model.running }
+      ({ model | running = not model.running }, Cmd.none)
+
+    UpdatePlots ->
+      (model, Cmd.batch [totalEnergies <| indexedSample 30 model.totalEnergies, totalMagnetizations <| indexedSample 30 model.totalMagnetizations])
 
     NoOp ->
-      model
+      (model, Cmd.none)
 
-runIsing : Signal.Signal Action
-runIsing =
-  Signal.map (\_ -> RunMetropolis) <| Time.every <| Time.millisecond
 
-app = StartApp.start
-  { init = (initialModel, Effects.none)
-  , update = \m a -> update m a |> \m -> (m, Effects.none)
+app = App.program
+  { init = (initialModel, Cmd.none)
+  , update = update
   , view = view
-  , inputs = [runIsing]
+  , subscriptions = subscriptions
   }
 
-main : Signal.Signal Html
 main =
-  app.html
+  app
 
 type alias Point =
   { index : Float
   , value : Float
   }
 
-samplingSignal = Time.every <| 5* Time.second
+subscriptions _ =
+  Sub.batch [runIsing, updatePlots]
 
-port totalEnergies: Signal (List Point)
-port totalEnergies=
-  Signal.sampleOn
-    samplingSignal
-    (Signal.map (\m -> List.map (\(i, v) -> { index = i, value = v}) <| sampledTo 30 m.totalEnergies) app.model)
+updatePlots : Sub Msg
+updatePlots = Time.every (5 * Time.second) (\_ -> UpdatePlots)
 
-port totalMagnetizations: Signal (List Point)
-port totalMagnetizations =
-  Signal.sampleOn
-    samplingSignal
-    (Signal.map (\m -> List.map (\(i, v) -> { index = i, value = v}) <| sampledTo 30 m.totalMagnetizations) app.model)
+runIsing : Sub Msg
+runIsing =
+  Time.every Time.millisecond (\_ -> RunMetropolis)
+
+port totalEnergies : List Point -> Cmd msg
+port totalMagnetizations : List Point -> Cmd msg
