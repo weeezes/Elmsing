@@ -12,6 +12,7 @@ import Random
 import Random.Extra as RandomExtra
 import Time
 import String exposing (toInt)
+import Tuple exposing (first, second)
 
 type Spin = Up | Down
 type InitialConfiguration = Ups | Downs | Random Random.Seed
@@ -203,7 +204,7 @@ type alias Model =
 initialModel : Model
 initialModel =
   { randomSeed = Random.initialSeed 0,
-    spinMatrix = fst <| initMatrix (Random <| Random.initialSeed 0) 5 5,
+    spinMatrix = first <| initMatrix (Random <| Random.initialSeed 0) 5 5,
     width = 5,
     height = 5,
     steps = 1,
@@ -275,9 +276,9 @@ view model =
     , Html.button [Events.onClick StepMetropolis] [ Html.text "Step"]
     , Html.button [Events.onClick ToggleRunning] [Html.text <| if model.running then "Stop" else "Start"]
     , Html.br [] []
-    , Html.text <| "Energy: " ++ (floatToString model.avgEnergy) ++ "±" ++ (floatToString << standardDeviation << listTakeLastPercentage 0.85 <| List.map snd model.totalEnergies)
+    , Html.text <| "Energy: " ++ (floatToString model.avgEnergy) ++ "±" ++ (floatToString << standardDeviation << listTakeLastPercentage 0.85 <| List.map second model.totalEnergies)
     , Html.br [] []
-    , Html.text <| "Magnetization: " ++ (floatToString model.avgMagnetization) ++ "±" ++ (floatToString << standardDeviation << listTakeLastPercentage 0.85 <| List.map snd model.totalMagnetizations)
+    , Html.text <| "Magnetization: " ++ (floatToString model.avgMagnetization) ++ "±" ++ (floatToString << standardDeviation << listTakeLastPercentage 0.85 <| List.map second model.totalMagnetizations)
     , Html.br [] []
     , Html.table [] <|
         Array.toList <|
@@ -339,8 +340,8 @@ stepN n model =
     (seed, energies, magnetizations, spinMatrix) = metropolis model.spinMatrix n model.randomSeed model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)
     totalEnergies_ = List.append model.totalEnergies <| Array.toList <| Array.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) energies
     totalMagnetizations_ = List.append model.totalMagnetizations <| Array.toList <| Array.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) magnetizations
-    avgEnergy = listAverage <| List.map snd <| listTakeLastPercentage 0.85 totalEnergies_
-    avgMagnetization = listAverage <| List.map snd <| listTakeLastPercentage 0.85 totalMagnetizations_
+    avgEnergy = listAverage <| List.map second <| listTakeLastPercentage 0.85 totalEnergies_
+    avgMagnetization = listAverage <| List.map second <| listTakeLastPercentage 0.85 totalMagnetizations_
   in
     { model | spinMatrix = spinMatrix, randomSeed = seed, totalEnergies = totalEnergies_, totalMagnetizations = totalMagnetizations_, avgEnergy = avgEnergy, avgMagnetization = avgMagnetization, currentStep = model.currentStep + n}
 
@@ -352,7 +353,7 @@ update action model =
         case toInt widthString of
           Ok width ->
             if width < 50 then
-              ({ model | width = width, spinMatrix = fst <| initMatrix model.currentConfiguration model.height width }, Cmd.none)
+              ({ model | width = width, spinMatrix = first <| initMatrix model.currentConfiguration model.height width }, Cmd.none)
             else
               (model, Cmd.none)
           _ ->
@@ -365,7 +366,7 @@ update action model =
         case toInt heightString of
           Ok height ->
             if height < 50 then
-              ({ model | height = height, spinMatrix = fst <| initMatrix model.currentConfiguration height model.width }, Cmd.none)
+              ({ model | height = height, spinMatrix = first <| initMatrix model.currentConfiguration height model.width }, Cmd.none)
             else
               (model, Cmd.none)
           _ ->
@@ -443,7 +444,7 @@ update action model =
             case seed of
               Just s -> ({ model | randomSeed = s, spinMatrix = spinMatrix, totalEnergies = [], totalMagnetizations = [], avgEnergy = 0, avgMagnetization = 0, currentStep = 0}, Cmd.none)
               _ -> (model, Cmd.none)
-        _ -> ({ model | spinMatrix = fst <| initMatrix configuration model.height model.width, totalEnergies = [], totalMagnetizations = [], avgEnergy = 0, avgMagnetization = 0, currentStep = 0 }, Cmd.none)
+        _ -> ({ model | spinMatrix = first <| initMatrix configuration model.height model.width, totalEnergies = [], totalMagnetizations = [], avgEnergy = 0, avgMagnetization = 0, currentStep = 0 }, Cmd.none)
 
     ToggleRunning ->
       ({ model | running = not model.running }, Cmd.none)
