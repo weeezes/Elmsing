@@ -456,7 +456,7 @@ update action model =
       (model, Cmd.none)
 
 
-app = App.program
+app = Browser.element
   { init = (initialModel, Cmd.none)
   , update = update
   , view = view
@@ -475,11 +475,11 @@ subscriptions _ =
   Sub.batch [runIsing, updatePlots]
 
 updatePlots : Sub Msg
-updatePlots = Time.every (5 * Time.second) (\_ -> UpdatePlots)
+updatePlots = Time.every (5 * 1000) (\_ -> UpdatePlots)
 
 runIsing : Sub Msg
 runIsing =
-  Time.every Time.millisecond (\_ -> RunMetropolis)
+  Time.every 1 (\_ -> RunMetropolis)
 
 port totalEnergies : List Point -> Cmd msg
 port totalMagnetizations : List Point -> Cmd msg
