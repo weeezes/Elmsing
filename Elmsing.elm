@@ -1,4 +1,4 @@
-port module Main exposing (..)
+port module Elmsing exposing (..)
 
 import Html exposing (Html)
 import Html.App as App
@@ -46,14 +46,14 @@ initMatrix configuration height width =
 flipSpinAt spinMatrix i j =
   let
     row = get i spinMatrix
-    spin = row `andThen` get j
+    spin = row |> andThen get j
   in
     case spin of
       Just s ->
         let
-          row' = Maybe.map (Array.set j (flipSpin s)) row
+          rowNew = Maybe.map (Array.set j (flipSpin s)) row
         in
-          case row' of
+          case rowNew of
             Just r -> Array.set i r spinMatrix
             _ -> spinMatrix
       _ -> spinMatrix
@@ -80,28 +80,28 @@ spinMagnetizationAt : SpinMatrix -> Int -> Int -> Float
 spinMagnetizationAt spinMatrix i j =
   let
     (height, width) = shape spinMatrix
-    i' = boundaryCondition 0 height i
-    j' = boundaryCondition 0 width j
+    ii = boundaryCondition 0 height i
+    jj = boundaryCondition 0 width j
   in
-    withDefault 0 <| Maybe.map spinMagnetization <| get i' spinMatrix `andThen` get j'
+    withDefault 0 <| Maybe.map spinMagnetization <| get ii spinMatrix |> andThen get jj
 
 totalMagnetization : SpinMatrix -> Float
 totalMagnetization spinMatrix =
   let
     (height, width) = shape spinMatrix
-    totalMagnetization' i j spinMatrix magnetization =
+    totalMagnetizationNext i j spinMatrix magnetization =
       if i == height - 1 && j == width - 1 then
         magnetization
       else
         let
-          magnetization' = magnetization + spinMagnetizationAt spinMatrix i j
+          magnetizationNext = magnetization + spinMagnetizationAt spinMatrix i j
         in
           if j == width - 1 then
-            totalMagnetization' (i + 1) 0 spinMatrix magnetization'
+            totalMagnetizationNext (i + 1) 0 spinMatrix magnetizationNext
           else
-            totalMagnetization' i (j + 1) spinMatrix magnetization'
+            totalMagnetizationNext i (j + 1) spinMatrix magnetizationNext
   in
-    totalMagnetization' 0 0 spinMatrix 0
+    totalMagnetizationNext 0 0 spinMatrix 0
 
 pointEnergy : SpinMatrix -> Int -> Int -> Float -> Float -> Float
 pointEnergy spinMatrix i j magneticFieldStrength interactionStrength =
@@ -117,7 +117,7 @@ pointEnergy spinMatrix i j magneticFieldStrength interactionStrength =
 
 totalEnergy spinMatrix magneticFieldStrength interactionStrength =
   let
-    totalEnergy' spinMatrix i j magneticFieldStrength interactionStrength energy =
+    totalEnergyNext spinMatrix i j magneticFieldStrength interactionStrength energy =
       let
         (height, width) = shape spinMatrix
       in
@@ -125,25 +125,25 @@ totalEnergy spinMatrix magneticFieldStrength interactionStrength =
           energy
         else
           let
-            energy' = energy + pointEnergy spinMatrix i j magneticFieldStrength (0.5 * interactionStrength)
+            energyNext = energy + pointEnergy spinMatrix i j magneticFieldStrength (0.5 * interactionStrength)
           in
             if j == width - 1 then
-              totalEnergy' spinMatrix (i + 1) 0 magneticFieldStrength interactionStrength energy'
+              totalEnergyNext spinMatrix (i + 1) 0 magneticFieldStrength interactionStrength energyNext
             else
-              totalEnergy' spinMatrix i (j + 1) magneticFieldStrength interactionStrength energy'
+              totalEnergyNext spinMatrix i (j + 1) magneticFieldStrength interactionStrength energyNext
   in
-    totalEnergy' spinMatrix 0 0 magneticFieldStrength interactionStrength 0
+    totalEnergyNext spinMatrix 0 0 magneticFieldStrength interactionStrength 0
 
 metropolis spinMatrix iterations seed magneticFieldStrength interactionStrength temperature =
   let
-    metropolis' iterations seed energies magnetizations spinMatrix magneticFieldStrength interactionStrength temperature =
+    metropolisNext iterations seed energies magnetizations spinMatrix magneticFieldStrength interactionStrength temperature =
       if iterations < 0 then
         (seed, energies, magnetizations, spinMatrix)
       else
         let
           (height, width) = shape spinMatrix
-          ((i, j), seed') = Random.step (Random.pair (Random.int 0 (height-1)) (Random.int 0 (width-1))) seed
-          (r, seed'') = Random.step (Random.float 0 1) seed'
+          ((i, j), seedNext) = Random.step (Random.pair (Random.int 0 (height-1)) (Random.int 0 (width-1))) seed
+          (r, seedNextNext) = Random.step (Random.float 0 1) seedNext
           dE = -2.0 * pointEnergy spinMatrix i j magneticFieldStrength interactionStrength
           dM = -2.0 * spinMagnetizationAt spinMatrix i j
           lastE = Maybe.withDefault 0 <| Array.get (Array.length energies - 1) energies
@@ -151,15 +151,15 @@ metropolis spinMatrix iterations seed magneticFieldStrength interactionStrength 
         in
           if dE < 0 || r < e^(-dE/temperature) then
             let
-              spinMatrix' = flipSpinAt spinMatrix i j
+              spinMatrixNext = flipSpinAt spinMatrix i j
             in
-              metropolis' (iterations - 1) seed'' (Array.push (lastE + dE) energies) (Array.push (lastM + dM) magnetizations) spinMatrix' magneticFieldStrength interactionStrength temperature
+              metropolisNext (iterations - 1) seedNextNext (Array.push (lastE + dE) energies) (Array.push (lastM + dM) magnetizations) spinMatrixNext magneticFieldStrength interactionStrength temperature
           else
-            metropolis' (iterations - 1) seed'' (Array.push lastE energies) (Array.push lastM magnetizations) spinMatrix magneticFieldStrength interactionStrength temperature
-    totalEnergy' = Array.fromList [totalEnergy spinMatrix magneticFieldStrength interactionStrength]
-    totalMagnetization' = Array.fromList [totalMagnetization spinMatrix]
+            metropolisNext (iterations - 1) seedNextNext (Array.push lastE energies) (Array.push lastM magnetizations) spinMatrix magneticFieldStrength interactionStrength temperature
+    totalEnergyNext = Array.fromList [totalEnergy spinMatrix magneticFieldStrength interactionStrength]
+    totalMagnetizationNext = Array.fromList [totalMagnetization spinMatrix]
   in
-    metropolis' iterations seed totalEnergy' totalMagnetization' spinMatrix magneticFieldStrength interactionStrength temperature
+    metropolisNext iterations seed totalEnergyNext totalMagnetizationNext spinMatrix magneticFieldStrength interactionStrength temperature
 
 spinToDiv : Spin -> Html Msg
 spinToDiv spin =
@@ -245,7 +245,7 @@ numberInputWithLabel label placeholder value msg =
     , Html.td
         []
         [ Html.input
-            [ Attributes.type' "number"
+            [ Attributes.type_ "number"
             , Attributes.placeholder placeholder
             , Attributes.value <| toString value
             , Events.onInput msg
@@ -290,7 +290,7 @@ listTakeLastPercentage p list = listTakeLast (round << (*) p << toFloat << List.
 listSample : List (Float, Float) -> Int -> List (Float, Float)
 listSample list points =
   let
-    listSample' agg rest points =
+    listSampleNext agg rest points =
       if List.length rest <= points then
         if List.length rest == 1 then
           List.concat [agg, rest]
@@ -299,11 +299,11 @@ listSample list points =
       else
         let
           ps = tupleListAverage <| List.take points rest
-          agg' = List.append agg [ps]
+          aggNext = List.append agg [ps]
         in
-          listSample' agg' (List.drop points rest) points
+          listSampleNext aggNext (List.drop points rest) points
   in
-    listSample' (List.take 1 list) (List.drop 1 list) points
+    listSampleNext (List.take 1 list) (List.drop 1 list) points
 
 sampledTo points list =
   let
@@ -320,7 +320,7 @@ indexedSample points list =
 listAverage list = (List.foldl (+) 0 list) / (toFloat <| List.length list)
 tupleListAverage list =
   let
-    (x, y) = List.foldl (\(x, y) (x', y') -> (x + x', y + y')) (0, 0) list
+    (x, y) = List.foldl (\(x1, y1) (x2, y2) -> (x1 + x2, y1 + y2)) (0, 0) list
   in
     (x /  (toFloat << List.length <| list), y / (toFloat << List.length <| list))
 
@@ -349,9 +349,9 @@ update action model =
     ChangeWidth widthString ->
       if String.length widthString > 0 then
         case toInt widthString of
-          Ok width' ->
-            if width' < 50 then
-              ({ model | width = width', spinMatrix = fst <| initMatrix model.currentConfiguration model.height width' }, Cmd.none)
+          Ok width ->
+            if width < 50 then
+              ({ model | width = width, spinMatrix = fst <| initMatrix model.currentConfiguration model.height width }, Cmd.none)
             else
               (model, Cmd.none)
           _ ->
@@ -362,9 +362,9 @@ update action model =
     ChangeHeight heightString ->
       if String.length heightString > 0 then
         case toInt heightString of
-          Ok height' ->
-            if height' < 50 then
-              ({ model | height = height', spinMatrix = fst <| initMatrix model.currentConfiguration height' model.width }, Cmd.none)
+          Ok height ->
+            if height < 50 then
+              ({ model | height = height, spinMatrix = fst <| initMatrix model.currentConfiguration height model.width }, Cmd.none)
             else
               (model, Cmd.none)
           _ ->
@@ -375,8 +375,8 @@ update action model =
     ChangeTemperature temperatureString ->
       if String.length temperatureString > 0 then
         case toInt temperatureString of
-          Ok temperature' ->
-            ({ model | temperature = temperature' }, Cmd.none)
+          Ok temperature ->
+            ({ model | temperature = temperature }, Cmd.none)
           _ ->
             (model, Cmd.none)
       else
@@ -385,8 +385,8 @@ update action model =
     ChangeMagneticFieldStrength magneticFieldStrengthString ->
       if String.length magneticFieldStrengthString > 0 then
         case toInt magneticFieldStrengthString of
-          Ok magneticFieldStrength' ->
-            ({ model | magneticFieldStrength = toFloat magneticFieldStrength' }, Cmd.none)
+          Ok magneticFieldStrength ->
+            ({ model | magneticFieldStrength = toFloat magneticFieldStrength }, Cmd.none)
           _ ->
             (model, Cmd.none)
       else
@@ -395,8 +395,8 @@ update action model =
     ChangeInteractionStrength interactionStrengthString ->
       if String.length interactionStrengthString > 0 then
         case toInt interactionStrengthString of
-          Ok interactionStrength' ->
-            ({ model | interactionStrength = toFloat interactionStrength' }, Cmd.none)
+          Ok interactionStrength ->
+            ({ model | interactionStrength = toFloat interactionStrength }, Cmd.none)
           _ ->
             (model, Cmd.none)
       else
@@ -404,9 +404,9 @@ update action model =
 
     StepMetropolis ->
       let
-        model' = stepN model.steps model
+        modelNext = stepN model.steps model
       in
-        ({ model' | running = False }, Cmd.none)
+        ({ modelNext | running = False }, Cmd.none)
 
     RunMetropolis ->
       if model.running then
@@ -417,15 +417,15 @@ update action model =
             (stepN model.steps model, Cmd.none)
           else
             let
-              model' = stepN limit model
+              modelNext = stepN limit model
             in
-              ({ model' | steps = limit }, Cmd.none)
+              ({ modelNext | steps = limit }, Cmd.none)
       else
         (model, Cmd.none)
 
-    ChangeMetropolisSteps steps' ->
-      if String.length steps' > 0 then
-        case toInt steps' of
+    ChangeMetropolisSteps steps ->
+      if String.length steps > 0 then
+        case toInt steps of
           Ok steps ->
             ({ model | steps = steps }, Cmd.none)
           _ ->
@@ -433,8 +433,8 @@ update action model =
       else
         ({ model | steps = 1 }, Cmd.none)
 
-    ChangeConfiguration configuration' ->
-      case configuration' of
+    ChangeConfiguration configuration ->
+      case configuration of
         Random r ->
           let
             (spinMatrix, seed) = initMatrix (Random model.randomSeed) model.height model.width
@@ -442,7 +442,7 @@ update action model =
             case seed of
               Just s -> ({ model | randomSeed = s, spinMatrix = spinMatrix, totalEnergies = [], totalMagnetizations = [], avgEnergy = 0, avgMagnetization = 0, currentStep = 0}, Cmd.none)
               _ -> (model, Cmd.none)
-        _ -> ({ model | spinMatrix = fst <| initMatrix configuration' model.height model.width, totalEnergies = [], totalMagnetizations = [], avgEnergy = 0, avgMagnetization = 0, currentStep = 0 }, Cmd.none)
+        _ -> ({ model | spinMatrix = fst <| initMatrix configuration model.height model.width, totalEnergies = [], totalMagnetizations = [], avgEnergy = 0, avgMagnetization = 0, currentStep = 0 }, Cmd.none)
 
     ToggleRunning ->
       ({ model | running = not model.running }, Cmd.none)
