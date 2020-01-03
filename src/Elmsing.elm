@@ -11,7 +11,7 @@ import Maybe exposing (andThen, withDefault)
 import Random
 import Random.Extra as RandomExtra
 import Time
-import String exposing (toInt)
+import String exposing (toInt, fromInt, fromFloat)
 import Tuple exposing (first, second)
 
 type Spin = Up | Down
@@ -222,7 +222,7 @@ initialModel =
 
 floatToString f =
   let
-    s = toString f
+    s = fromFloat f
     separator =
       if String.contains "." s then
         "."
@@ -249,7 +249,7 @@ numberInputWithLabel label placeholder value msg =
         [ Html.input
             [ Attributes.type_ "number"
             , Attributes.placeholder placeholder
-            , Attributes.value <| toString value
+            , Attributes.value <| fromInt value
             , Events.onInput msg
             ]
             []
