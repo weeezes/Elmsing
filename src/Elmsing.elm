@@ -147,7 +147,7 @@ metropolis spinMatrix iterations seed magneticFieldStrength interactionStrength 
   let
     metropolisNext iterationsNext seedNext energies magnetizations spinMatrixNext magneticFieldStrengthNext interactionStrengthNext temperatureNext =
       if iterationsNext < 0 then
-        { seed = seed
+        { seed = seedNext
         , energies = energies
         , magnetizations = magnetizations
         , spinMatrix = spinMatrixNext
