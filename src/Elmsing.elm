@@ -55,7 +55,7 @@ initMatrix configuration height width =
 flipSpinAt spinMatrix i j =
   let
     row = get i spinMatrix
-    spin = row |> andThen get j
+    spin = row |> andThen (get j)
   in
     case spin of
       Just s ->
@@ -92,7 +92,7 @@ spinMagnetizationAt spinMatrix i j =
     ii = boundaryCondition 0 height i
     jj = boundaryCondition 0 width j
   in
-    (withDefault 0 <| Maybe.map spinMagnetization <| get ii spinMatrix) |> andThen get jj
+    withDefault 0 <| Maybe.map spinMagnetization <| (get ii spinMatrix |> andThen (get jj))
 
 totalMagnetization : SpinMatrix -> Float
 totalMagnetization spinMatrix =
@@ -177,8 +177,8 @@ metropolis spinMatrix iterations seed magneticFieldStrength interactionStrength 
 spinToDiv : Spin -> Html Msg
 spinToDiv spin =
   case spin of
-    Up -> Html.div [Attributes.class "spinUp", Attributes.style [("width", "30px"), ("height", "30px"), ("backgroundColor", "white")]] []
-    Down -> Html.div [Attributes.class "spinDown", Attributes.style [("width", "30px"), ("height", "30px"), ("backgroundColor", "black")]] []
+    Up -> Html.div [Attributes.class "spinUp", Attributes.style "width" "30px", Attributes.style "height" "30px", Attributes.style "backgroundColor" "white"] []
+    Down -> Html.div [Attributes.class "spinDown", Attributes.style "width" "30px", Attributes.style "height" "30px", Attributes.style "backgroundColor" "black"] []
 
 type Msg
   = NoOp
@@ -249,7 +249,7 @@ floatToString f =
   in
     a ++ "." ++ b
 
-numberInputWithLabel label placeholder value msg =
+intInputWithLabel label placeholder value msg =
   Html.tr
     []
     [ Html.td
@@ -267,18 +267,36 @@ numberInputWithLabel label placeholder value msg =
         ]
     ]
 
+floatInputWithLabel label placeholder value msg =
+  Html.tr
+    []
+    [ Html.td
+        []
+        [ Html.text label]
+    , Html.td
+        []
+        [ Html.input
+            [ Attributes.type_ "number"
+            , Attributes.placeholder placeholder
+            , Attributes.value <| fromFloat value
+            , Events.onInput msg
+            ]
+            []
+        ]
+    ]
+
 view : Model -> Html Msg
 view model =
   Html.div
     []
     [ Html.table
-        [Attributes.style [("display", "box")]]
-        [ numberInputWithLabel "Width: " "Width" model.width (\str -> ChangeWidth str)
-        , numberInputWithLabel "Height: " "Height" model.height (\str -> ChangeHeight str)
-        , numberInputWithLabel "Interaction strength: " "Interaction strength" model.interactionStrength (\str -> ChangeInteractionStrength str)
-        , numberInputWithLabel "Field strength: " "Field strength" model.magneticFieldStrength (\str -> ChangeMagneticFieldStrength str)
-        , numberInputWithLabel "Temperature: " "Temperature" model.temperature (\str -> ChangeTemperature str)
-        , numberInputWithLabel "Steps: " "Steps" model.steps (\str -> ChangeMetropolisSteps str)
+        [Attributes.style "display" "box"]
+        [ intInputWithLabel "Width: " "Width" model.width (\str -> ChangeWidth str)
+        , intInputWithLabel "Height: " "Height" model.height (\str -> ChangeHeight str)
+        , floatInputWithLabel "Interaction strength: " "Interaction strength" model.interactionStrength (\str -> ChangeInteractionStrength str)
+        , floatInputWithLabel "Field strength: " "Field strength" model.magneticFieldStrength (\str -> ChangeMagneticFieldStrength str)
+        , intInputWithLabel "Temperature: " "Temperature" model.temperature (\str -> ChangeTemperature str)
+        , intInputWithLabel "Steps: " "Steps" model.steps (\str -> ChangeMetropolisSteps str)
         ]
     , Html.br [] []
     , Html.button [Events.onClick (ChangeConfiguration (Random model.randomSeed))] [ Html.text "Randomize"]
@@ -362,7 +380,7 @@ update action model =
     ChangeWidth widthString ->
       if String.length widthString > 0 then
         case toInt widthString of
-          Ok width ->
+          Just width ->
             if width < 50 then
               ({ model | width = width, spinMatrix = first <| initMatrix model.currentConfiguration model.height width }, Cmd.none)
             else
@@ -375,7 +393,7 @@ update action model =
     ChangeHeight heightString ->
       if String.length heightString > 0 then
         case toInt heightString of
-          Ok height ->
+          Just height ->
             if height < 50 then
               ({ model | height = height, spinMatrix = first <| initMatrix model.currentConfiguration height model.width }, Cmd.none)
             else
@@ -388,7 +406,7 @@ update action model =
     ChangeTemperature temperatureString ->
       if String.length temperatureString > 0 then
         case toInt temperatureString of
-          Ok temperature ->
+          Just temperature ->
             ({ model | temperature = temperature }, Cmd.none)
           _ ->
             (model, Cmd.none)
@@ -398,7 +416,7 @@ update action model =
     ChangeMagneticFieldStrength magneticFieldStrengthString ->
       if String.length magneticFieldStrengthString > 0 then
         case toInt magneticFieldStrengthString of
-          Ok magneticFieldStrength ->
+          Just magneticFieldStrength ->
             ({ model | magneticFieldStrength = toFloat magneticFieldStrength }, Cmd.none)
           _ ->
             (model, Cmd.none)
@@ -408,7 +426,7 @@ update action model =
     ChangeInteractionStrength interactionStrengthString ->
       if String.length interactionStrengthString > 0 then
         case toInt interactionStrengthString of
-          Ok interactionStrength ->
+          Just interactionStrength ->
             ({ model | interactionStrength = toFloat interactionStrength }, Cmd.none)
           _ ->
             (model, Cmd.none)
@@ -439,7 +457,7 @@ update action model =
     ChangeMetropolisSteps steps ->
       if String.length steps > 0 then
         case toInt steps of
-          Ok stepsNext ->
+          Just stepsNext ->
             ({ model | steps = stepsNext }, Cmd.none)
           _ ->
             (model, Cmd.none)
@@ -468,7 +486,7 @@ update action model =
 
 
 app = Browser.element
-  { init = (initialModel, Cmd.none)
+  { init = \() -> (initialModel, Cmd.none)
   , update = update
   , view = view
   , subscriptions = subscriptions
