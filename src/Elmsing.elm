@@ -428,8 +428,8 @@ update action model =
     ChangeMetropolisSteps steps ->
       if String.length steps > 0 then
         case toInt steps of
-          Ok steps ->
-            ({ model | steps = steps }, Cmd.none)
+          Ok stepsNext ->
+            ({ model | steps = stepsNext }, Cmd.none)
           _ ->
             (model, Cmd.none)
       else
