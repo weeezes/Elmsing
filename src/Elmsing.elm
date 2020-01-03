@@ -21,6 +21,13 @@ type alias IsingModel =
   { matrix : SpinMatrix
   }
 
+type alias MetropolisResult =
+  { seed : Int
+  , energies : Array Float
+  , magnetizations : Array Float
+  , spinMatrix : SpinMatrix
+  }
+
 shape : SpinMatrix -> (Int, Int)
 shape spinMatrix =
   let
@@ -140,7 +147,11 @@ metropolis spinMatrix iterations seed magneticFieldStrength interactionStrength 
   let
     metropolisNext iterationsNext seedNext energies magnetizations spinMatrixNext magneticFieldStrengthNext interactionStrengthNext temperatureNext =
       if iterationsNext < 0 then
-        (seedNext, energies, magnetizations, spinMatrixNext)
+        { seed = seed
+        , energies = energies
+        , magnetizations = magnetizations
+        , spinMatrix = spinMatrixNext
+        }
       else
         let
           (height, width) = shape spinMatrixNext
@@ -337,13 +348,13 @@ standardDeviation list =
 stepN : Int -> Model -> Model
 stepN n model =
   let
-    (seed, energies, magnetizations, spinMatrix) = metropolis model.spinMatrix n model.randomSeed model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)
-    totalEnergies_ = List.append model.totalEnergies <| Array.toList <| Array.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) energies
-    totalMagnetizations_ = List.append model.totalMagnetizations <| Array.toList <| Array.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) magnetizations
+    metropolisResult = metropolis model.spinMatrix n model.randomSeed model.magneticFieldStrength model.interactionStrength (toFloat model.temperature)
+    totalEnergies_ = List.append model.totalEnergies <| Array.toList <| Array.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) metropolisResult.energies
+    totalMagnetizations_ = List.append model.totalMagnetizations <| Array.toList <| Array.indexedMap (\i v -> (toFloat <| model.currentStep + i, v)) metropolisResult.magnetizations
     avgEnergy = listAverage <| List.map second <| listTakeLastPercentage 0.85 totalEnergies_
     avgMagnetization = listAverage <| List.map second <| listTakeLastPercentage 0.85 totalMagnetizations_
   in
-    { model | spinMatrix = spinMatrix, randomSeed = seed, totalEnergies = totalEnergies_, totalMagnetizations = totalMagnetizations_, avgEnergy = avgEnergy, avgMagnetization = avgMagnetization, currentStep = model.currentStep + n}
+    { model | spinMatrix = metropolisResult.spinMatrix, randomSeed = metropolisResult.seed, totalEnergies = totalEnergies_, totalMagnetizations = totalMagnetizations_, avgEnergy = avgEnergy, avgMagnetization = avgMagnetization, currentStep = model.currentStep + n}
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update action model =
